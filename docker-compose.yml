@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15-alpine
+    image: postgis/postgis:15-3.4
     container_name: geoniti-db
     mem_limit: 512m
     restart: unless-stopped
