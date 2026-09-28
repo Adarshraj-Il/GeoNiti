@@ -1,0 +1,14 @@
+geoniti.duckdns.org {
+	# Enable gzip compression for better performance
+	encode gzip
+
+	# Route all /api/* requests to the backend Node.js server
+	handle /api/* {
+		reverse_proxy backend:5000
+	}
+
+	# Route all other requests to the frontend Nginx server (SPA)
+	handle {
+		reverse_proxy frontend:80
+	}
+}

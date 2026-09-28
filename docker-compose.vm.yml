@@ -1,0 +1,80 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: geoniti-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+  db:
+    image: postgis/postgis:15-3.4
+    container_name: geoniti-db
+    mem_limit: 1024m
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-adarsh17}
+      POSTGRES_DB: ${DB_NAME:-geoniti_auth}
+    volumes:
+      - geoniti_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-geoniti_auth}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: geoniti-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.vm
+    environment:
+      PORT: "5000"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-adarsh17}
+      DB_NAME: ${DB_NAME:-geoniti_auth}
+      JWT_SECRET: ${JWT_SECRET:-changeme_please}
+      CLIENT_URL: https://geoniti.duckdns.org
+      NODE_ENV: production
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/api/auth/health 2>/dev/null || node -e \"require('http').get('http://localhost:5000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: https://geoniti.duckdns.org
+    container_name: geoniti-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      VITE_API_URL: https://geoniti.duckdns.org
+
+volumes:
+  geoniti_db_data:
+  caddy_data:
+  caddy_config:
