@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS states (
 CREATE TABLE IF NOT EXISTS districts (
     id SERIAL PRIMARY KEY,
     district_name VARCHAR(100) NOT NULL,
-    state_id INTEGER REFERENCES states(id)
+    state_id INTEGER REFERENCES states(id),
+    UNIQUE (district_name, state_id)
 );
 
 CREATE TABLE IF NOT EXISTS users (
@@ -87,5 +88,15 @@ CREATE TABLE IF NOT EXISTS notifications (
     user_id UUID REFERENCES users(id),
     message TEXT NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS system_logs (
+    id SERIAL PRIMARY KEY,
+    user_id UUID REFERENCES users(id),
+    action VARCHAR(255) NOT NULL,
+    entity VARCHAR(100),
+    entity_id INTEGER,
+    ip VARCHAR(45),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
