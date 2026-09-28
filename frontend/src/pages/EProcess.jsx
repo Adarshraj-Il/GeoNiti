@@ -1,24 +1,44 @@
-import { useState } from "react";
-import { workflowStages, projects, auditLog } from "../data/mockData";
+import { useState, useEffect } from "react";
+import { auditLog } from "../data/mockData";
 import StatusStamp from "../components/StatusStamp";
 import { ScrollText } from "lucide-react";
+import api from "../api/axios";
 
-const STAGE_TO_STATUS = {
-  filing: "proposed",
-  verification: "proposed",
-  notification: "notified",
-  award: "awarded",
-  possession: "possessed",
-};
-
+const REAL_WORKFLOW_STAGES = [
+  { key: "Draft", title: "Draft", description: "Project is being drafted.", owner: "Project Agency", slaDays: 0 },
+  { key: "Submitted", title: "Submitted", description: "Project submitted for review.", owner: "Project Agency", slaDays: 7 },
+  { key: "District Approved", title: "District Approved", description: "Approved by district.", owner: "District Authority", slaDays: 14 },
+  { key: "State Approved", title: "State Approved", description: "Approved by state.", owner: "State Government", slaDays: 21 },
+  { key: "Notification Issued", title: "Notification Issued", description: "Legal notification issued.", owner: "State Government", slaDays: 30 },
+  { key: "Field Verified", title: "Field Verified", description: "Verified on ground.", owner: "Field Officer", slaDays: 14 },
+  { key: "Compensation Pending", title: "Compensation Pending", description: "Waiting for compensation payment.", owner: "District Authority", slaDays: 21 },
+  { key: "Compensation Paid", title: "Compensation Paid", description: "Compensation fully paid.", owner: "District Authority", slaDays: 7 },
+  { key: "Completed", title: "Completed", description: "Process finished and possession taken.", owner: "State Government", slaDays: 0 },
+].map((s, i) => ({ ...s, number: i + 1 }));
 export default function EProcess() {
-  const [activeStage, setActiveStage] = useState(workflowStages[0].key);
-  const [selectedProject, setSelectedProject] = useState(projects[1].id);
+  const [activeStage, setActiveStage] = useState(REAL_WORKFLOW_STAGES[0].key);
+  const [selectedProject, setSelectedProject] = useState("");
+  const [projectsList, setProjectsList] = useState([]);
 
-  const stage = workflowStages.find((s) => s.key === activeStage);
-  const project = projects.find((p) => p.id === selectedProject);
-  const currentIndex = workflowStages.findIndex(
-    (s) => STAGE_TO_STATUS[s.key] === project.status
+  useEffect(() => {
+    api.get("/api/projects")
+      .then(res => {
+         if (res.data && res.data.length > 0) {
+           setProjectsList(res.data);
+           setSelectedProject(res.data[0].id);
+         }
+      })
+      .catch(err => {
+         console.error("Failed to fetch projects", err);
+      });
+  }, []);
+
+  const stage = REAL_WORKFLOW_STAGES.find((s) => s.key === activeStage) || REAL_WORKFLOW_STAGES[0];
+  const project = projectsList.find((p) => p.id == selectedProject) || {
+    id: "N/A", name: "No project selected", status: "Draft"
+  };
+  const currentIndex = REAL_WORKFLOW_STAGES.findIndex(
+    (s) => s.key === project.status
   );
 
   return (
@@ -40,8 +60,8 @@ export default function EProcess() {
           onChange={(e) => setSelectedProject(e.target.value)}
           className="rounded-full border border-line bg-white px-4 py-1.5 text-sm text-ink shadow-sm"
         >
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.id} — {p.name}</option>
+          {projectsList.map((p) => (
+            <option key={p.id} value={p.id}>{p.id} — {p.title || p.name}</option>
           ))}
         </select>
       </div>
@@ -49,8 +69,8 @@ export default function EProcess() {
       {/* Stage rail */}
       <div className="relative mt-12">
         <div className="absolute left-0 right-0 top-6 hidden h-[3px] bg-line sm:block" />
-        <div className="relative grid grid-cols-1 gap-8 sm:grid-cols-5">
-          {workflowStages.map((s, i) => {
+        <div className="relative grid grid-cols-1 gap-8 sm:grid-cols-[repeat(9,minmax(0,1fr))] overflow-x-auto">
+          {REAL_WORKFLOW_STAGES.map((s, i) => {
             const reached = i <= currentIndex;
             return (
               <button key={s.key} onClick={() => setActiveStage(s.key)} className="text-left">
@@ -76,7 +96,7 @@ export default function EProcess() {
       {/* Stage detail + project status */}
       <div className="mt-10 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <div className="card-surface p-6">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-clay">Stage {stage.number} of 5</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-clay">Stage {stage.number} of {REAL_WORKFLOW_STAGES.length}</p>
           <h3 className="mt-1 font-display text-2xl text-ink">{stage.title}</h3>
           <p className="mt-3 leading-relaxed text-[#6c757d]">{stage.description}</p>
           <dl className="mt-5 grid grid-cols-2 gap-y-2 text-sm">
@@ -89,14 +109,14 @@ export default function EProcess() {
 
         <div className="card-surface p-6">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Current status</p>
-          <h3 className="mt-1 font-display text-lg text-ink">{project.name}</h3>
+          <h3 className="mt-1 font-display text-lg text-ink">{project.title || project.name}</h3>
           <div className="mt-3">
             <StatusStamp status={project.status} />
           </div>
           <p className="mt-4 text-sm text-[#6c757d]">
-            {project.parcelsPossessed} of {project.parcelsTotal} parcels possessed ·{" "}
-            ₹{(project.compensationDisbursed / 10000000).toFixed(1)} Cr disbursed of{" "}
-            ₹{(project.compensationAssessed / 10000000).toFixed(1)} Cr assessed
+            {project.parcelsPossessed || 0} of {project.parcelsTotal || 0} parcels possessed ·{" "}
+            ₹{((project.compensationDisbursed || 0) / 10000000).toFixed(1)} Cr disbursed of{" "}
+            ₹{((project.compensationAssessed || 0) / 10000000).toFixed(1)} Cr assessed
           </p>
         </div>
       </div>

@@ -14,7 +14,7 @@ const TABS = [
 ];
 
 export default function TopBar() {
-  const { role, roleId, setRoleId, roles } = useRole();
+  const { role } = useRole();
   const { user, logout } = useAuth();
   const [roleOpen, setRoleOpen] = useState(false);
 
@@ -36,7 +36,7 @@ export default function TopBar() {
               हिन्दी
             </a>
             <a href="#" className="hidden md:flex items-center gap-1.5 text-gold hover:text-white transition-colors">
-              <Phone className="h-3.5 w-3.5" /> Helpline: 1800-XXX-XXXX
+              <Phone className="h-3.5 w-3.5" /> Helpline: 1800-111-2222
             </a>
           </div>
         </div>

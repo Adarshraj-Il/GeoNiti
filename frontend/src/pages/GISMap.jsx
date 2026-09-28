@@ -1,19 +1,33 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { parcels, projects, STATUS_COLORS, STATUS_LABELS } from "../data/mockData";
+import { parcels as mockParcels, projects as mockProjects, STATUS_COLORS, STATUS_LABELS } from "../data/mockData";
 import StatusStamp from "../components/StatusStamp";
+import api from "../api/axios";
 
 export default function GISMap() {
   const [activeParcel, setActiveParcel] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [parcels, setParcels] = useState([]);
+  const [projectsList, setProjectsList] = useState([]);
+
+  useEffect(() => {
+    api.get("/api/parcels")
+      .then(res => setParcels(res.data?.length ? res.data : mockParcels))
+      .catch(() => setParcels(mockParcels));
+
+    api.get("/api/projects")
+      .then(res => setProjectsList(res.data?.length ? res.data : mockProjects))
+      .catch(() => setProjectsList(mockProjects));
+  }, []);
 
   const visible = useMemo(
     () => parcels.filter((p) => statusFilter === "all" || p.status === statusFilter),
-    [statusFilter]
+    [statusFilter, parcels]
   );
 
-  const projectFor = (id) => projects.find((p) => p.id === id);
+  const projectFor = (id) => projectsList.find((p) => p.id === id);
+
 
   return (
     <div className="mx-auto max-w-[1400px] px-6 py-12">

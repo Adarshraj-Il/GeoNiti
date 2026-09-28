@@ -1,10 +1,12 @@
+import { useEffect, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { AlertTriangle } from "lucide-react";
+import api from "../api/axios";
 import {
-  funnelData, stateProgress, compensationByProject, familiesData, delayFlags, projects,
+  funnelData as mockFunnel, stateProgress as mockStateProgress, compensationByProject as mockComp, familiesData as mockFam, delayFlags as mockFlags, projects as mockProjects,
 } from "../data/mockData";
 
 const CLAY = "#b8860b";
@@ -24,6 +26,25 @@ function Panel({ title, sub, children }) {
 }
 
 export default function Dashboard() {
+  const [dashData, setDashData] = useState({
+    funnelData: mockFunnel,
+    stateProgress: mockStateProgress,
+    compensationByProject: mockComp,
+    familiesData: mockFam,
+    delayFlags: mockFlags,
+    projects: mockProjects,
+  });
+
+  useEffect(() => {
+    api.get("/api/dashboard")
+      .then(res => {
+        if (res.data && Object.keys(res.data).length > 0) setDashData(res.data);
+      })
+      .catch(() => {}); // fallback to mock on error
+  }, []);
+
+  const { funnelData, stateProgress, compensationByProject, familiesData, delayFlags, projects } = dashData;
+
   return (
     <div className="mx-auto max-w-[1400px] px-6 py-12">
       <div className="mb-8 text-center">

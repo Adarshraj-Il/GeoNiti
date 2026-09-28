@@ -1,19 +1,42 @@
-import { useMemo, useState } from "react";
-import { projects, documents, STATUS_LABELS } from "../data/mockData";
+import { useMemo, useState, useEffect } from "react";
+import { documents as mockDocuments, STATUS_LABELS } from "../data/mockData";
 import StatusStamp from "../components/StatusStamp";
 import { FileText, Filter } from "lucide-react";
+import api from "../api/axios";
 
 export default function DigitalRecords() {
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedProject, setSelectedProject] = useState(projects[0].id);
+  const [selectedProject, setSelectedProject] = useState("");
+  const [projectsList, setProjectsList] = useState([]);
+  const [documentsList, setDocumentsList] = useState([]);
+
+  useEffect(() => {
+    api.get("/api/projects")
+      .then(res => {
+        if (res.data) {
+          setProjectsList(res.data);
+          if (res.data.length > 0) setSelectedProject(res.data[0].id);
+        }
+      })
+      .catch(() => setProjectsList([]));
+      
+    api.get("/api/documents")
+      .then(res => {
+        if (res.data) {
+          setDocumentsList(res.data);
+        }
+      })
+      .catch(() => setDocumentsList(mockDocuments)); // fallback for demo
+  }, []);
 
   const filtered = useMemo(
-    () => projects.filter((p) => statusFilter === "all" || p.status === statusFilter),
-    [statusFilter]
+    () => projectsList.filter((p) => statusFilter === "all" || p.status === statusFilter),
+    [statusFilter, projectsList]
   );
 
-  const projectDocs = documents.filter((d) => d.projectId === selectedProject);
-  const activeProject = projects.find((p) => p.id === selectedProject);
+  const projectDocs = documentsList.filter((d) => d.projectId === selectedProject);
+  const activeProject = projectsList.find((p) => p.id == selectedProject);
+
 
   return (
     <div className="mx-auto max-w-[1400px] px-6 py-12">
@@ -62,8 +85,8 @@ export default function DigitalRecords() {
               >
                 <span className="font-mono text-xs text-ink-soft">{p.id}</span>
                 <span>
-                  <span className="block font-medium text-ink">{p.name}</span>
-                  <span className="block text-sm text-[#6c757d]">{p.district}, {p.state}</span>
+                  <span className="block font-medium text-ink">{p.title || p.name}</span>
+                  <span className="block text-sm text-[#6c757d]">{p.district_name || p.district}, {p.state_name || p.state}</span>
                 </span>
                 <StatusStamp status={p.status} size="sm" />
               </button>
@@ -79,10 +102,10 @@ export default function DigitalRecords() {
           {activeProject ? (
             <>
               <p className="font-mono text-xs text-ink-soft">{activeProject.id}</p>
-              <h3 className="mt-1 font-display text-xl text-ink">{activeProject.name}</h3>
+              <h3 className="mt-1 font-display text-xl text-ink">{activeProject.title || activeProject.name}</h3>
               <dl className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
                 <dt className="text-ink-soft">Implementing agency</dt>
-                <dd className="text-ink">{activeProject.agency}</dd>
+                <dd className="text-ink">{activeProject.agency_name || activeProject.agency || "N/A"}</dd>
                 <dt className="text-ink-soft">Parcels</dt>
                 <dd className="text-ink">{activeProject.parcelsPossessed} / {activeProject.parcelsTotal} possessed</dd>
                 <dt className="text-ink-soft">Target date</dt>
