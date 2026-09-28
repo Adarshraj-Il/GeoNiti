@@ -7,7 +7,7 @@ import {protect} from '../middleware/auth.js';
 const router =express.Router();
 const cookieOption ={
     httpOnly:true,
-    secure:process.env.Node_ENV === 'production',
+    secure:process.env.NODE_ENV === 'production',
     sameSite:"strict",
     maxAge: 30 * 24 * 60 * 60 * 1000,
 }
@@ -34,9 +34,12 @@ router.post('/register', async(req,res)=>{
     let permissions = [];
     
     if (roleId) {
-        await pool.query('INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)', [userId, roleId]);
         const roleRes = await pool.query('SELECT role_name FROM roles WHERE id = $1', [roleId]);
         if (roleRes.rows.length > 0) {
+            if (roleRes.rows[0].role_name === 'Administrator') {
+                return res.status(403).json({message: 'Cannot register as Administrator'});
+            }
+            await pool.query('INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)', [userId, roleId]);
             roles.push(roleRes.rows[0].role_name);
             const permRes = await pool.query(
                 `SELECT DISTINCT p.permission_name FROM permissions p
@@ -141,7 +144,7 @@ router.post('/logout',(req,res)=>{
 
 router.get('/roles', async (req, res) => {
     try {
-        const { rows } = await pool.query('SELECT id, role_name FROM roles');
+        const { rows } = await pool.query("SELECT id, role_name FROM roles WHERE role_name != 'Administrator'");
         res.json(rows);
     } catch (e) {
         res.status(500).json({message: 'Failed to fetch roles'});
