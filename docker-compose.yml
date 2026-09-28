@@ -1,0 +1,45 @@
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-adarsh17}
+      POSTGRES_DB: ${DB_NAME:-geoniti_auth}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      - PORT=5000
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-adarsh17}
+      - DB_NAME=${DB_NAME:-geoniti_auth}
+      - JWT_SECRET=${JWT_SECRET:-123465789}
+      - CLIENT_URL=http://localhost:5173
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=http://localhost:5000
+    ports:
+      - "5173:80" # Map host port 5173 to nginx port 80 to keep URL the same for users!
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:

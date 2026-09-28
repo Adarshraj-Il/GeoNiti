@@ -14,7 +14,7 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node scripts/seed.js && node server.js",
     "dev": "npx nodemon server.js"
   },
   "keywords": [],

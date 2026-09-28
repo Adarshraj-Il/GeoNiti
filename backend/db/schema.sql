@@ -4,6 +4,18 @@ CREATE TABLE IF NOT EXISTS roles (
     role_name VARCHAR(50) UNIQUE NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS permissions (
+    id SERIAL PRIMARY KEY,
+    permission_name VARCHAR(100) UNIQUE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+    role_id INTEGER REFERENCES roles(id),
+    permission_id INTEGER REFERENCES permissions(id),
+    PRIMARY KEY (role_id, permission_id)
+);
+
+
 CREATE TABLE IF NOT EXISTS states (
     id SERIAL PRIMARY KEY,
     state_name VARCHAR(100) UNIQUE NOT NULL
