@@ -59,6 +59,19 @@ router.post('/', protect, async (req, res) => {
     }
 });
 
+// Get project by ID
+router.get('/:id', protect, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rows } = await pool.query('SELECT * FROM projects WHERE id = $1', [id]);
+        if (rows.length === 0) return res.status(404).json({ message: 'Project not found' });
+        res.json(rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // Workflow engine: advance state
 router.post('/:id/advance', protect, async (req, res) => {
     const { id } = req.params;
@@ -66,11 +79,24 @@ router.post('/:id/advance', protect, async (req, res) => {
     const user = req.user;
     
     try {
-        const { rows } = await pool.query('SELECT status FROM projects WHERE id = $1', [id]);
+        const { rows } = await pool.query('SELECT status, district_id, state_id, agency_id FROM projects WHERE id = $1', [id]);
         if (rows.length === 0) return res.status(404).json({ message: 'Project not found' });
         
-        const currentStatus = rows[0].status;
+        const project = rows[0];
+        const currentStatus = project.status;
         let newStatus = currentStatus;
+
+        // Jurisdiction Check
+        const userRes = await pool.query('SELECT district_id, state_id FROM users WHERE id = $1', [user.id]);
+        if (userRes.rows.length > 0) {
+            const userDb = userRes.rows[0];
+            if (user.roles.includes('District Officer') && userDb.district_id !== project.district_id) {
+                return res.status(403).json({ message: 'Jurisdiction error: District mismatch' });
+            }
+            if (user.roles.includes('State Officer') && userDb.state_id !== project.state_id) {
+                return res.status(403).json({ message: 'Jurisdiction error: State mismatch' });
+            }
+        }
 
         // State Machine Logic
         if (currentStatus === 'Draft' && user.roles.includes('Project Implementing Agency') && action === 'Submit') {
@@ -109,7 +135,7 @@ router.post('/:id/advance', protect, async (req, res) => {
         // Notification
         await pool.query(
             'INSERT INTO notifications (user_id, message) VALUES ($1, $2)',
-            [user.id, `Project ID ${id} transitioned from ${currentStatus} to ${newStatus}`]
+            [project.agency_id, `Project ID ${id} transitioned from ${currentStatus} to ${newStatus}`]
         );
 
         res.json({ message: 'Success', status: newStatus });
