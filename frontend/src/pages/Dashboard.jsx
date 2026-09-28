@@ -38,19 +38,21 @@ export default function Dashboard() {
   useEffect(() => {
     api.get("/api/dashboard")
       .then(res => {
-        if (res.data && Object.keys(res.data).length > 0) setDashData(res.data);
+        if (res.data) {
+          setDashData(prev => ({ ...prev, ...res.data }));
+        }
       })
       .catch(() => {}); // fallback to mock on error
   }, []);
 
-  const { funnelData, stateProgress, compensationByProject, familiesData, delayFlags, projects } = dashData;
+  const { funnelData = [], stateProgress = [], compensationByProject = [], familiesData = [], delayFlags = [], projects = [] } = dashData;
 
   return (
     <div className="mx-auto max-w-[1400px] px-6 py-12">
       <div className="mb-8 text-center">
         <h1 className="font-display text-[2rem] text-ink">Acquisition Pipeline, at a Glance</h1>
         <p className="mx-auto mt-2 max-w-2xl text-[#6c757d]">
-          Aggregated from {projects.length} active projects across 6 states. Figures are seed data for demonstration.
+          Aggregated from {dashData.project_count !== undefined ? dashData.project_count : projects?.length || 0} active projects across 6 states. Figures are seed data for demonstration.
         </p>
         <div className="bg-gradient-accent mx-auto mt-4 h-1 w-20 rounded-full" />
       </div>
