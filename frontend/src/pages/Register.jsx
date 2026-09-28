@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { UserPlus } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
 
 export default function Register() {
   const { fetchUser } = useAuth();
+  const navigate = useNavigate();
   const [submitted, setSubmitted] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [roleId, setRoleId] = useState("");
+  const [state, setState] = useState("");
   const [userType, setUserType] = useState("guest");
   const [roles, setRoles] = useState([]);
   const [error, setError] = useState("");
@@ -51,11 +53,13 @@ export default function Register() {
               setLoading(true);
               setError("");
               try {
-                const { default: api } = await import("../api/axios");
                 const finalRoleId = userType === "officer" && roleId ? parseInt(roleId) : null;
-                await api.post("/api/auth/register", { name, email, password, roleId: finalRoleId });
+                await api.post("/api/auth/register", { name, email, password, roleId: finalRoleId, state });
                 await fetchUser();
                 setSubmitted(true);
+                setTimeout(() => {
+                  navigate("/dashboard");
+                }, 2000);
               } catch (err) {
                 setError(err.response?.data?.message || "Registration failed");
               } finally {
@@ -84,7 +88,7 @@ export default function Register() {
             {userType === "officer" && (
               <div>
                 <label className="text-sm font-medium text-ink">State</label>
-                <input placeholder="e.g. Odisha" className="mt-1 w-full rounded-xl border border-line bg-parchment px-4 py-2.5 text-sm outline-none focus:border-clay" />
+                <input value={state} onChange={(e) => setState(e.target.value)} placeholder="e.g. Odisha" className="mt-1 w-full rounded-xl border border-line bg-parchment px-4 py-2.5 text-sm outline-none focus:border-clay" />
               </div>
             )}
             

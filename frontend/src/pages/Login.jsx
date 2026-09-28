@@ -36,8 +36,6 @@ export default function Login() {
             setLoading(true);
             setError("");
             try {
-              // We'll import api at the top
-              const { default: api } = await import("../api/axios");
               const res = await api.post("/api/auth/login", { email, password });
               // Store user info if needed, but cookies handle auth
               console.log("Login successful:", res.data);
