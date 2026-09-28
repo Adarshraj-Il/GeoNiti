@@ -1,45 +1,71 @@
-
 services:
   db:
     image: postgres:15-alpine
+    container_name: geoniti-db
+    mem_limit: 512m
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-adarsh17}
       POSTGRES_DB: ${DB_NAME:-geoniti_auth}
     ports:
-      - "5432:5432"
+      - "${DB_PORT_MAP:-5432}:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    restart: unless-stopped
+      - geoniti_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-geoniti_auth}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   backend:
     build:
       context: ./backend
-    environment:
-      - PORT=5000
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-adarsh17}
-      - DB_NAME=${DB_NAME:-geoniti_auth}
-      - JWT_SECRET=${JWT_SECRET:-123465789}
-      - CLIENT_URL=http://localhost:5173
-    ports:
-      - "5000:5000"
-    depends_on:
-      - db
+      dockerfile: Dockerfile
+    container_name: geoniti-backend
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      PORT: "5000"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-adarsh17}
+      DB_NAME: ${DB_NAME:-geoniti_auth}
+      JWT_SECRET: ${JWT_SECRET:-changeme_please}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:5173}
+    ports:
+      - "${BACKEND_PORT_MAP:-5000}:5000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/api/auth/health 2>/dev/null || node -e \"require('http').get('http://localhost:5000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile
       args:
-        - VITE_API_URL=http://localhost:5000
-    ports:
-      - "5173:80" # Map host port 5173 to nginx port 80 to keep URL the same for users!
-    depends_on:
-      - backend
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
+    container_name: geoniti-frontend
     restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
+    ports:
+      - "${FRONTEND_PORT_MAP:-5173}:80"
 
 volumes:
-  pgdata:
+  geoniti_db_data:
